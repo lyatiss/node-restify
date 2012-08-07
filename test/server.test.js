@@ -1159,3 +1159,44 @@ test('GH-149 limit request body size (json)', function (t) {
     req.end();
   });
 });
+
+test('GH-180 can parse DELETE body', function(t){
+  var server = restify.createServer();
+  server.use(restify.bodyParser({mapParams: false}));
+
+  server.del('/', function (req, res, next) {
+    res.send(200, req.body);
+    return next();
+  });
+
+  server.listen(PORT, function () {
+    var opts = {
+      hostname: 'localhost',
+      port: PORT,
+      path: '/',
+      method: 'DELETE',
+      agent: false,
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'transfer-encoding': 'chunked'
+      }
+    };
+    var req = http.request(opts, function (res) {
+      t.equal(res.statusCode, 200);
+      res.setEncoding('utf8');
+      res.body = '';
+      res.on('data', function (chunk) {
+        res.body += chunk;
+      });
+      res.on('end', function () {
+        t.equal(res.body, '{"param1":1234}');
+        server.close(function () {
+          t.end();
+        });
+      });
+    });
+    req.write('{"param1": 1234}');
+    req.end();
+  });
+});
